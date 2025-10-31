@@ -1,34 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
 import '../models/exercise.dart';
 import '../data/exercises_seed.dart';
+
 import 'exercises_list_screen.dart';
-import 'add_exercise_screen.dart';
 import 'exercise_detail_screen.dart';
 import 'favorites_screen.dart';
 import 'about_screen.dart';
 import 'gallery_screen.dart';
+import 'add_exercise_screen.dart';
+import '/features/exercises/navigation_args.dart';
 
 class ExercisesContainer extends StatefulWidget {
-  const ExercisesContainer({super.key});
+
+  final List<Exercise>? initial;
+
+  const ExercisesContainer({super.key, this.initial});
 
   @override
   State<ExercisesContainer> createState() => _ExercisesContainerState();
 }
 
 class _ExercisesContainerState extends State<ExercisesContainer> {
-  final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+  late List<Exercise> _all;
 
-  // Данные
-  final List<Exercise> _all = [...seedExercises];
-
-  // Фильтры/поиск
   String _query = '';
-  Set<Difficulty> _diff = {};
-  Set<Equipment> _equip = {};
+  final Set<Difficulty> _diff = {};
+  final Set<Equipment> _equip = {};
   MuscleGroup? _muscle;
 
   // UI
   bool _filtersExpanded = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _all = List<Exercise>.from(widget.initial ?? seedExercises);
+  }
 
   String get _q => _query.trim().toLowerCase();
 
@@ -39,107 +48,82 @@ class _ExercisesContainerState extends State<ExercisesContainer> {
           e.description.toLowerCase().contains(_q);
       final byDiff = _diff.isEmpty || _diff.contains(e.difficulty);
       final byEquip = _equip.isEmpty || _equip.contains(e.equipment);
-      final byMuscle = _muscle == null || e.muscle == _muscle;
+      final byMuscle = _muscle == null || _muscle == e.muscle;
       return byQuery && byDiff && byEquip && byMuscle;
-    }).toList()
-      ..sort((a, b) => a.title.compareTo(b.title));
+    }).toList();
   }
 
-  // Навигация
-  void _openAdd() {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => AddExerciseScreen(onSave: _createExercise),
-    ));
-  }
-
-  void _openDetail(String id) {
+  void _openDetailById(String id) {
     final ex = _all.firstWhere((e) => e.id == id);
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ExerciseDetailScreen(
+    context.push(
+      '/detail/$id',
+      extra: ExerciseDetailArgs(
         item: ex,
-        onToggleFavorite: () => _toggleFavorite(id),
+        onToggleFavorite: () => _toggleFavoriteById(ex.id),
       ),
-    ));
+    );
+  }
+
+  void _openAdd() {
+    context.push(
+      '/add',
+      extra: AddExerciseArgs(
+        onSave: ({
+          required String title,
+          required String description,
+          required MuscleGroup muscle,
+          required Equipment equipment,
+          required Difficulty difficulty,
+        }) {
+          final updated = List<Exercise>.from(_all)
+            ..add(
+              Exercise(
+                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                title: title,
+                description: description,
+                muscle: muscle,
+                equipment: equipment,
+                difficulty: difficulty,
+                isFavorite: false,
+                createdAt: DateTime.now(),
+              ),
+            );
+
+          context.pushReplacement('/', extra: updated);
+        },
+      ),
+    );
   }
 
   void _openFavorites() {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => FavoritesScreen(
-        items: _all.where((e) => e.isFavorite).toList()
-          ..sort((a, b) => a.title.compareTo(b.title)),
-        onDelete: _delete,
-        onToggleFavorite: _toggleFavorite,
-        onOpenDetail: _openDetail,
-      ),
-    ));
-  }
-
-  void _openAbout() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AboutScreen()),
-    );
-  }
-
-  void _openGallery() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const GalleryScreen()),
-    );
-  }
-
-  // Бизнес-операции
-  void _createExercise({
-    required String title,
-    required String description,
-    required MuscleGroup muscle,
-    required Equipment equipment,
-    required Difficulty difficulty,
-  }) {
-    final ex = Exercise(
-      id: nextId(),
-      title: title,
-      description: description,
-      muscle: muscle,
-      equipment: equipment,
-      difficulty: difficulty,
-      createdAt: DateTime.now(),
-    );
-    setState(() => _all.add(ex));
-    _showSnack('Упражнение «$title» добавлено');
-  }
-
-  void _toggleFavorite(String id) {
-    final i = _all.indexWhere((e) => e.id == id);
-    if (i == -1) return;
-    final ex = _all[i];
-    setState(() => _all[i] = ex.copyWith(isFavorite: !ex.isFavorite));
-  }
-
-  void _delete(String id) {
-    final i = _all.indexWhere((e) => e.id == id);
-    if (i == -1) return;
-    final removed = _all[i];
-    setState(() => _all.removeAt(i));
-    _scaffoldMessengerKey.currentState?.clearSnackBars();
-    _scaffoldMessengerKey.currentState?.showSnackBar(
-      SnackBar(
-        content: Text('Удалено: ${removed.title}'),
-        action: SnackBarAction(
-          label: 'ОТМЕНИТЬ',
-          onPressed: () => setState(() => _all.insert(i, removed)),
-        ),
+    final favs = _all.where((e) => e.isFavorite).toList();
+    context.push(
+      '/favorites',
+      extra: FavoritesArgs(
+        items: favs,
+        onDelete: (id) => setState(() => _all.removeWhere((e) => e.id == id)),
+        onToggleFavorite: _toggleFavoriteById,
+        onOpenDetail: _openDetailById,
       ),
     );
   }
+  void _openAbout() => context.push('/about');
 
-  void _showSnack(String msg) {
-    _scaffoldMessengerKey.currentState?.showSnackBar(SnackBar(content: Text(msg)));
+  void _openGallery() => context.push('/gallery');
+
+  void _toggleFavoriteById(String id) {
+    final i = _all.indexWhere((e) => e.id == id);
+    if (i != -1) {
+      setState(() {
+        _all[i] = _all[i].copyWith(isFavorite: !_all[i].isFavorite);
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return ScaffoldMessenger(
-      key: _scaffoldMessengerKey,
-      child: ExercisesListScreen(
+    return Scaffold(
+      body: ExercisesListScreen(
         items: _visible,
         query: _query,
         selectedDifficulties: _diff,
@@ -149,17 +133,18 @@ class _ExercisesContainerState extends State<ExercisesContainer> {
         onToggleDifficulty: (d) => setState(() => _diff.toggle(d)),
         onToggleEquipment: (e) => setState(() => _equip.toggle(e)),
         onSelectMuscle: (m) => setState(() => _muscle = m),
+
         onAddTap: _openAdd,
-        onDelete: _delete,
-        onToggleFavorite: _toggleFavorite,
-        onOpenDetail: _openDetail,
+        onDelete: (id) => setState(() => _all.removeWhere((e) => e.id == id)),
+        onToggleFavorite: _toggleFavoriteById,
+        onOpenDetail: _openDetailById,
+
         filtersExpanded: _filtersExpanded,
         onToggleFilters: () => setState(() => _filtersExpanded = !_filtersExpanded),
-        onOpenFavorites: _openFavorites,
-        onOpenAbout: _openAbout,
 
-        onOpenGallery: _openGallery,
-
+        onOpenFavorites: _openFavorites, // push (вертикально)
+        onOpenAbout: _openAbout,         // push (вертикально)
+        onOpenGallery: _openGallery,     // push (вертикально)
       ),
     );
   }

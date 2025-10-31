@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
-import 'features/exercises/screens/exercises_container.dart';
-import 'core/theme.dart';
+import 'app_router.dart';
 
-class App extends StatelessWidget {
-  const App({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Справочник упражнений',
       debugShowCheckedModeBanner: false,
-      theme: buildTheme(),
-      home: const ExercisesContainer(),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: const Color(0xFF6C63FF),
+        brightness: Brightness.light,
+      ),
+      routerConfig: appRouter, // маршрутизированная навигация
     );
   }
 }

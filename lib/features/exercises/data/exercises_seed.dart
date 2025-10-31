@@ -2,7 +2,6 @@ import 'dart:math';
 import '../models/exercise.dart';
 
 final List<Exercise> seedExercises = [
-  // Грудь
   Exercise(
     id: 'ex_${1001}',
     title: 'Отжимания',

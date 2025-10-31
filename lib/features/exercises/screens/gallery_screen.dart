@@ -1,59 +1,42 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:go_router/go_router.dart';
 
 class GalleryScreen extends StatelessWidget {
-  const GalleryScreen({super.key});
+  const GalleryScreen({super.key, this.hideBack = false});
 
-  // 5 прямых HTTPS-ссылок c static.photos (тематика — sport)
-  static const urls = <String>[
-    'https://static.photos/sport/640x360/139',
-    'https://static.photos/sport/640x360/140',
-    'https://static.photos/sport/640x360/141',
-    'https://static.photos/sport/640x360/142',
-    'https://static.photos/sport/640x360/143',
-  ];
+  final bool hideBack;
+
+  static const String _category = 'sport';
+  static const String _size = '200x200';
+  static const List<int> _ids = [125, 207, 318, 451, 509];
+
+  static List<String> get _photos =>
+      _ids.map((id) => 'https://static.photos/$_category/$_size/$id').toList();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Галерея')),
-      body: Padding(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: hideBack ? null : BackButton(onPressed: () => context.pop()),
+        title: const Text('Галерея'),
+      ),
+      body: GridView.builder(
         padding: const EdgeInsets.all(12),
-        child: GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12,
+        ),
+        itemCount: _photos.length,
+        itemBuilder: (context, i) => ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Image.network(
+            _photos[i],
+            fit: BoxFit.cover,
+            errorBuilder: (c, e, s) => Container(
+              color: Theme.of(context).colorScheme.surfaceVariant,
+              child: const Center(child: Icon(Icons.broken_image)),
+            ),
           ),
-          itemCount: urls.length,
-          itemBuilder: (context, index) {
-            final url = urls[index];
-            return ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: CachedNetworkImage(
-                imageUrl: url,
-                fit: BoxFit.cover,
-                fadeInDuration: const Duration(milliseconds: 120),
-                placeholderFadeInDuration: Duration.zero,
-                progressIndicatorBuilder: (_, __, ___) => Container(
-                  color: Colors.black12,
-                  alignment: Alignment.center,
-                  child: const SizedBox(
-                    width: 24, height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-                errorWidget: (_, __, ___) => GestureDetector(
-                  onTap: () => (context as Element).markNeedsBuild(), // тап = ретрай
-                  child: Container(
-                    color: Colors.black12,
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.broken_image, size: 48),
-                  ),
-                ),
-              ),
-            );
-          },
         ),
       ),
     );

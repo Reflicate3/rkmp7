@@ -5,6 +5,7 @@ import '../widgets/equipment_chips.dart';
 import '../widgets/muscle_chips.dart';
 import '../widgets/exercise_card.dart';
 import '../widgets/search_field.dart';
+import 'package:go_router/go_router.dart';
 
 class ExercisesListScreen extends StatelessWidget {
   final List<Exercise> items;
